@@ -12,9 +12,9 @@ from go import Position
 from go import is_koish
 from absl import app, flags
 import dual_net
-from strategies import MCTSPlayer
+# from strategies import MCTSPlayer
 import utils
-import threading
+# import threading
 
 
 modelDir = './models/000496/v3-9x9_models_000496-polite-ray-upgrade'
