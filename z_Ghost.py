@@ -10,14 +10,13 @@
 import numpy as np
 from go import Position
 from go import is_koish
-from absl import app, flags
 import dual_net
 from strategies import MCTSPlayer
 import utils
+import threading
 
 
 modelDir = './models/000496/v3-9x9_models_000496-polite-ray-upgrade'
-
 
 class Ghost():
     def __init__(self, color):
@@ -49,7 +48,6 @@ class Ghost():
                            1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=float)
         self.basePb = self.basePb / 3
         self.basePb = np.reshape(self.basePb, (9, 9))
-
     
     def action(self):
         """计算落子并返回坐标"""
@@ -92,7 +90,7 @@ class Ghost():
         # 不主动pass
         scoreBoard = scoreBoard[:81]
 
-        print('scoreBoard:\n',scoreBoard)
+        #print('scoreBoard:\n',scoreBoard)
 
         flatMaxIdx = np.argmax(scoreBoard)
 
@@ -197,23 +195,21 @@ class Ghost():
         pb = pb / pb.sum()
 
         # 判断对手棋子总数上限，num_oppStones不能大于上限
-        print('num_oppStones:', self.num_oppStones)
+        #print('num_oppStones:', self.num_oppStones)
         board_innerQi = self.findInnerQi()
         num_oppStoneUpperLimit = 81 - len(np.transpose(np.nonzero(self.board_selfNow))) - len(np.transpose(np.nonzero(board_innerQi)))
         if self.num_oppStones > num_oppStoneUpperLimit:
             self.num_oppStones = num_oppStoneUpperLimit
 
-        # 记得加多线程
-
-        for t in range(500):
+        for t in range(200):
             tmpPb = pb.copy()
 
-            tmpGo = Position(n=9,board=self.board_selfNow,to_play=-self.color)
+            tmpGo = Position(n=9, board=self.board_selfNow, to_play=-self.color)
 
             for i in range(self.num_oppStones - 1):
                 for ntry in range(5):
                     flatIdx = np.random.choice(self.board_flat_idx, 1, p=tmpPb.flat)
-                    action_opp = (int(flatIdx/9), int(flatIdx%9))
+                    action_opp = (int(flatIdx / 9), int(flatIdx % 9))
 
                     if not tmpGo.is_move_legal(action_opp):
                         continue
@@ -233,14 +229,14 @@ class Ghost():
                     break
 
             for q in range(10):
-                flatIdx = np.random.choice(self.board_flat_idx,1,p=tmpPb.flat)
-                action_opp = (int(flatIdx/9),int(flatIdx%9))
+                flatIdx = np.random.choice(self.board_flat_idx, 1, p=tmpPb.flat)
+                action_opp = (int(flatIdx / 9), int(flatIdx % 9))
 
                 if not tmpGo.is_move_legal(action_opp):
                     continue
 
                 preBoard = tmpGo.board.copy()
-                preBoard[action_opp[0],action_opp[1]] = 1
+                preBoard[action_opp[0], action_opp[1]] = 1
                 tmpGo = tmpGo.play_move(action_opp)
                 absDiff = np.abs(preBoard) - np.abs(tmpGo.board)
                 if len(np.transpose(np.nonzero(absDiff))):
@@ -248,3 +244,72 @@ class Ghost():
                 else:
                     self.board_sims.append(tmpGo)
                     break
+
+        """
+        # 记得加多线程
+
+        def simTrd(trdId):
+            trdId = int(trdId)
+            num_suc = 0
+            for t in range(200):
+                tmpPb = pb.copy()
+
+                tmpGo = Position(n=9, board=self.board_selfNow, to_play=-self.color)
+
+                for i in range(self.num_oppStones - 1):
+                    for ntry in range(5):
+                        flatIdx = np.random.choice(self.board_flat_idx, 1, p=tmpPb.flat)
+                        action_opp = (int(flatIdx / 9), int(flatIdx % 9))
+
+                        if not tmpGo.is_move_legal(action_opp):
+                            continue
+
+                        preBoard = tmpGo.board.copy()
+                        preBoard[action_opp[0], action_opp[1]] = 1
+                        tmpGo_sub = tmpGo.play_move(action_opp)
+                        absDiff = np.abs(preBoard) - np.abs(tmpGo_sub.board)
+                        if len(np.transpose(np.nonzero(absDiff))):
+                            continue
+
+                        tmpGo = tmpGo_sub
+                        tmpGo.to_play = -self.color
+
+                        tmpPb.flat[flatIdx] = 0
+                        tmpPb = tmpPb / tmpPb.sum()
+                        break
+
+                for q in range(10):
+                    flatIdx = np.random.choice(self.board_flat_idx, 1, p=tmpPb.flat)
+                    action_opp = (int(flatIdx / 9), int(flatIdx % 9))
+
+                    if not tmpGo.is_move_legal(action_opp):
+                        continue
+
+                    preBoard = tmpGo.board.copy()
+                    preBoard[action_opp[0], action_opp[1]] = 1
+                    tmpGo = tmpGo.play_move(action_opp)
+                    absDiff = np.abs(preBoard) - np.abs(tmpGo.board)
+                    if len(np.transpose(np.nonzero(absDiff))):
+                        continue
+                    else:
+                        # self.tmpSims[trdId].append(tmpGo)
+                        self.tmpSims[trdId*200+num_suc, :, :] = tmpGo.board
+                        num_suc += 1
+                        break
+            self.tmpSims_numPerTrd[trdId] = num_suc
+
+        threads = []
+        for i in range(4):
+            t = threading.Thread(target=simTrd, args=(str(i)))
+            threads.append(t)
+            t.start()
+        for t in threads:
+            t.join()
+
+        for i in range(4):
+            self.board_sims = self.board_sims + self.tmpSims
+
+        self.board_sims = self.tmpSims[0] + self.tmpSims[1] + self.tmpSims[2] + self.tmpSims[3]
+        self.tmpSims = [[], [], [], []]
+        """
+

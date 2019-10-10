@@ -9,7 +9,8 @@
 from absl import app
 from tkinter import *
 from tkinter.messagebox import *
-from z_Ghost import Ghost
+
+from z_Ghost1 import Ghost
 
 class Chess(object):
 
@@ -17,8 +18,6 @@ class Chess(object):
         #############
         #   param   #
         #######################################
-        self.ghost = Ghost(1)
-
         self.row, self.column = 9, 9
         self.mesh = 50.1
         self.ratio = 0.9
@@ -58,19 +57,15 @@ class Chess(object):
         # 定义按钮与标签
         # parameter state
         self.b_initial = Button(self.f_header, text="初始化", command=self.bf_initial, font=self.btn_font)
-        self.b_illegal = Button(self.f_header, text="illegal", command=self.bf_illegal, font=self.btn_font)
-        self.b_legal = Button(self.f_header, text="legal", command=self.bf_legal, font=self.btn_font)
+        self.b_takechess = Button(self.f_header, text="提子", command=self.bf_takechess_start, font=self.btn_font)
+        self.b_takechess_end = Button(self.f_header, text="提子结束", command=self.bf_takechess_end, font=self.btn_font)
         self.b_PhantomGo = Button(self.BOTTOM_operation, text="下棋", command=self.cf_board, font=self.btn_font)
-        self.b_takechess = Button(self.BOTTOM_operation, text="提子", command=self.bf_takechess_start, font=self.btn_font)
-        self.b_takechess_end = Button(self.BOTTOM_operation, text="提子结束", command=self.bf_takechess_end, font=self.btn_font)
 
         # 调整按钮与标签的位置
         self.b_initial.pack(side=LEFT, padx=50)
-        self.b_illegal.pack(side=RIGHT, padx=50)
-        self.b_legal.pack(side=TOP)
-        self.b_PhantomGo.pack(side=LEFT, padx=50)
         self.b_takechess.pack(side=RIGHT, padx=50)
         self.b_takechess_end.pack(side=BOTTOM)
+        self.b_PhantomGo.pack(side=BOTTOM)
 
         self.c_chess = Canvas(self.root, bg=self.board_color, width=(self.column + 1) * self.mesh,
                               height=(self.row + 1) * self.mesh, highlightthickness=0)
@@ -114,9 +109,21 @@ class Chess(object):
         self.matrix = [[0 for y in range(self.column)] for x in range(self.row)]
         self.draw_board()
         for i in range(9):
-            self.c_chess.create_text(35, 55+i*49, text=9-i, font=self.btn_font)
+            self.c_chess.create_text(485, 55+i*49, text=9-i, font=self.btn_font)
         for j in range(9):
-            self.c_chess.create_text(52+j*50, 35, text=chr(ord('A')+j), font=self.btn_font)
+            self.c_chess.create_text(52+j*50, 485, text=chr(ord('A')+j), font=self.btn_font)
+        for i in range(9):
+            self.c_chess.create_text(15, 55+i*49, text=i, font=self.btn_font)
+        for j in range(9):
+            self.c_chess.create_text(52+j*50, 15, text=j, font=self.btn_font)
+
+        color_info = askquestion("确定我方先后手", "先手？")
+        color = 0
+        if color_info == 'yes':
+           color = 1
+        else:
+           color = -1
+        self.ghost = Ghost(color)
 
     # 程序接口
     def bf_takechess_start(self):
@@ -130,7 +137,6 @@ class Chess(object):
         self.takechess_storage = []
         self.state = 0
 
-
     # 用网格覆盖掉棋子，操作相应变量，matrix[x][y]置空
     def bf_takechess(self, click):
         if self.state:
@@ -141,56 +147,52 @@ class Chess(object):
             # 计算点击点到中心的距离
             distance = ((center_x - click.y) ** 2 + (center_y - click.x) ** 2) ** 0.5
             # 如果距离不在规定的圆内，退出//如果这个位置已经有棋子，退出//如果游戏还没开始，退出
+            # 双方子皆可被提出
             if distance > self.step * 0.95:
                 return
             self.draw_mesh(x, y)
             self.matrix[x][y] = 0
             self.takechess_storage.append([x, y])
-
-    def bf_legal(self):
-        self.ghost.on_legalInfo(True)
-
-    # 程序接口
-    def bf_illegal(self):
-        x, y = self.last_p
-        self.draw_mesh(x, y)
-        self.matrix[x][y] = 0
-        self.last_p = None
-
-        action = self.ghost.on_legalInfo(False)
-        x, y = action[0], action[1]
-        self.cf_board_input(x,y)
+        return self.takechess_storage
 
     # 程序接口
     def bf_PhantomGo(self):
         action = self.ghost.action()
-        x, y = action[0], action[1]
-        return x, y
+        return action[0], action[1]
 
     def cf_board(self):
         x, y = self.bf_PhantomGo()
-        # 此时棋子的颜色，和matrix中该棋子的标识。
-        color = "black"
-        tag = self.bf_color(1, -1)
-        # 先画棋子，在修改matrix相应点的值，用last_p记录本次操作点
-        self.draw_chess(x, y, color)
-        self.matrix[x][y] = tag
-        self.last_p = [x, y]
-        self.label['text'] = '(' + str(9-x) + ', ' + chr(ord('A')+y) + ')'
+        self.cf_board_input(x,y)
 
-    def cf_board_input(self,x,y):
-        color = "black"
-        tag = self.bf_color(1, -1)
-        # 先画棋子，在修改matrix相应点的值，用last_p记录本次操作点
-        self.draw_chess(x, y, color)
-        self.matrix[x][y] = tag
-        self.last_p = [x, y]
-        self.label['text'] = '(' + str(9 - x) + ', ' + chr(ord('A') + y) + ')'
+    def cf_board_input(self, x, y):
+        if (x == -1) and (y == -1):
+            self.label['text'] = 'pass'
+            return 0
+        else:
+            # 此时棋子的颜色，和matrix中该棋子的标识。
+            color = "black" if self.ghost.color == 1 else "white"
+            # tag = self.bf_color(1, -1)
+            # 先画棋子，在修改matrix相应点的值，用last_p记录本次操作点
+            self.draw_chess(x, y, color)
+            # self.matrix[x][y] = tag
+            self.last_p = [x, y]
+            self.label['text'] = '(' + str(9-x) + ', ' + chr(ord('A')+y) + ')'+ '    '+'(' + str(x) + ', ' + str(y) + ')'
+            legal_info = askquestion("判定合法情况", "legal？")
+            if legal_info == 'yes':
+                self.ghost.on_legalInfo(True)
+            else:
+                x, y = self.last_p
+                self.draw_mesh(x, y)
+                self.matrix[x][y] = 0
+                self.last_p = None
+                action = self.ghost.on_legalInfo(False)
+                self.cf_board_input(action[0],action[1])
 
     def bf_color(self, true, false):
         return true if self.is_chess else false
 
 def main(argv):
     Chess()
+
 if __name__ == '__main__':
     app.run(main)

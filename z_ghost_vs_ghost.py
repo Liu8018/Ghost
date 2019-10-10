@@ -1,79 +1,88 @@
 from absl import app
 import numpy as np
-from z_Ghost1 import Ghost as Ghost1
+from z_Ghost import Ghost as Ghost1
 from z_Ghost import Ghost as Ghost2
 from z_Referee import Referee
 import random
 
 def main(argv):
-    referee = Referee()
+    # 记录两方胜局数
+    num_vs = 100
+    num_g1win = 0
+    num_g2win = 0
 
-    colorList = [-1,1]
-    ghost1_color = colorList[random.randint(0,1)]
-    ghost1 = Ghost1(ghost1_color)
+    for vsIdx in range(num_vs):
+        referee = Referee()
 
-    ghost2 = Ghost2(-ghost1_color)
+        colorList = [-1, 1]
+        ghost1_color = colorList[random.randint(0, 1)]
+        ghost1 = Ghost1(ghost1_color)
 
-    print('Ghost1 color:', ghost1_color)
-    print('Ghost2 color:', -ghost1_color)
+        ghost2 = Ghost2(-ghost1_color)
 
-    num_move = 0
+        print('Ghost1 color:', ghost1_color)
+        print('Ghost2 color:', -ghost1_color)
 
-    while True:
-        print(referee.go)
+        num_move = 0
 
-        winner = 0
+        while True:
+            print('g1win:', num_g1win, ' ', 'g2win:', num_g2win)
+            print(referee.go)
 
-        if -(num_move%2-0.5)*2 == ghost1.color:
-            print("Ghost1's turn")
+            winner = 0
 
-            action = ghost1.action()
-            is_legal, takes, winner = referee.action(action)
-            while not is_legal:
-                print('Ghost1 try:',action)
-                action = ghost1.on_legalInfo(is_legal)
+            if -(num_move%2-0.5)*2 == ghost1.color:
+                print("Ghost1's turn")
+
+                action = ghost1.action()
                 is_legal, takes, winner = referee.action(action)
+                while not is_legal:
+                    print('Ghost1 try:',action)
+                    action = ghost1.on_legalInfo(is_legal)
+                    is_legal, takes, winner = referee.action(action)
 
-            print('action:', action)
+                print('action:', action)
 
-            if len(takes):
-                print('Ghost1 takes:\n', takes)
+                if len(takes):
+                    print('Ghost1 takes:\n', takes)
 
-            ghost1.on_legalInfo(True)
+                ghost1.on_legalInfo(True)
 
-            # 告知双方提子信息
-            ghost1.on_takeInfo(takes)
-            ghost2.on_takeInfo(takes)
+                # 告知双方提子信息
+                ghost1.on_takeInfo(takes)
+                ghost2.on_takeInfo(takes)
 
-        else:
-            print("Ghost2's turn")
+            else:
+                print("Ghost2's turn")
 
-            action = ghost2.action()
-            is_legal, takes, winner = referee.action(action)
-            while not is_legal:
-                print('Ghost2 try:', action)
-                action = ghost2.on_legalInfo(is_legal)
+                action = ghost2.action()
                 is_legal, takes, winner = referee.action(action)
+                while not is_legal:
+                    print('Ghost2 try:', action)
+                    action = ghost2.on_legalInfo(is_legal)
+                    is_legal, takes, winner = referee.action(action)
 
-            print('action:', action)
+                print('action:', action)
 
-            if len(takes):
-                print('Ghost2 takes:\n', takes)
+                if len(takes):
+                    print('Ghost2 takes:\n', takes)
 
-            ghost2.on_legalInfo(True)
+                ghost2.on_legalInfo(True)
 
-            # 告知双方提子信息
-            ghost2.on_takeInfo(takes)
-            ghost1.on_takeInfo(takes)
+                # 告知双方提子信息
+                ghost2.on_takeInfo(takes)
+                ghost1.on_takeInfo(takes)
 
-        if winner == ghost1_color:
-            print('Ghost1 wins!')
-            exit(0)
-        if winner == -ghost1_color:
-            print('Ghost2 wins!')
-            exit(0)
+            if winner == ghost1_color:
+                print('Ghost1 wins!')
+                num_g1win += 1
+                break
+            if winner == -ghost1_color:
+                print('Ghost2 wins!')
+                num_g2win += 1
+                break
 
-        num_move += 1
+            num_move += 1
 
 
 if __name__ == '__main__':
