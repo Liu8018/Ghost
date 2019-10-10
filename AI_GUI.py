@@ -10,7 +10,7 @@ from absl import app
 from tkinter import *
 from tkinter.messagebox import *
 
-from z_Ghost1 import Ghost
+from Ghost1 import Ghost
 
 class Chess(object):
 

@@ -1,7 +1,7 @@
 from absl import app
 import numpy as np
-from z_Ghost import Ghost
-from z_Referee import Referee
+from Ghost import Ghost
+from Referee import Referee
 import random
 
 basePb = np.array([1,2,3,4,5,4,3,2,1],dtype=float)

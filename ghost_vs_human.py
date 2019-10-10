@@ -1,7 +1,7 @@
 from absl import app
 import numpy as np
-from z_Ghost import Ghost
-from z_Referee import Referee
+from Ghost import Ghost
+from Referee import Referee
 import random
 
 def main(argv):

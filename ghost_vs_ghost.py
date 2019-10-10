@@ -1,8 +1,8 @@
 from absl import app
 import numpy as np
-from z_Ghost import Ghost as Ghost1
-from z_Ghost import Ghost as Ghost2
-from z_Referee import Referee
+from Ghost import Ghost as Ghost1
+from Ghost import Ghost as Ghost2
+from Referee import Referee
 import random
 
 def main(argv):
