@@ -7,7 +7,7 @@ import random
 
 def main(argv):
     # 记录两方胜局数
-    num_vs = 100
+    num_vs = int(argv[1])
     num_g1win = 0
     num_g2win = 0
 

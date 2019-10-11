@@ -1,12 +1,5 @@
 """幻影围棋AI by LiuYiGuang"""
 
-""" 
-尝试：
-    (1)用net+MCTS计算落子得分
-    (2)仅用net计算落子得分
-    (3)用神经网络做对手棋面预测，输入：己方行棋历史，试错历史，输出：对手棋面历史
-"""
-
 import numpy as np
 from go import Position
 from go import is_koish
@@ -14,12 +7,15 @@ import dual_net
 # from strategies import MCTSPlayer
 import utils
 # import threading
+import shelve
+from contextlib import closing
 
 
 modelDir = './models/000496/v3-9x9_models_000496-polite-ray-upgrade'
 
+
 class Ghost():
-    def __init__(self, color):
+    def __init__(self, color, buffer = None):
         self.color = color    # 己方棋子颜色（先后手信息），1:黑，-1:白
 
         self.board_selfNow = np.zeros((9,9),int)    # 己方当前棋面
@@ -38,17 +34,26 @@ class Ghost():
 
         # 空间位置概率
         self.basePb = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1,
-                           1, 2, 2, 2, 2, 2, 2, 2, 1,
-                           1, 2, 3, 3, 3, 3, 3, 2, 1,
-                           1, 2, 3, 4, 4, 4, 3, 2, 1,
-                           1, 2, 3, 4, 5, 4, 3, 2, 1,
-                           1, 2, 3, 4, 4, 4, 3, 2, 1,
-                           1, 2, 3, 3, 3, 3, 3, 2, 1,
-                           1, 2, 2, 2, 2, 2, 2, 2, 1,
-                           1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=float)
+                               1, 2, 2, 2, 2, 2, 2, 2, 1,
+                               1, 2, 3, 3, 3, 3, 3, 2, 1,
+                               1, 2, 3, 4, 4, 4, 3, 2, 1,
+                               1, 2, 3, 4, 5, 4, 3, 2, 1,
+                               1, 2, 3, 4, 4, 4, 3, 2, 1,
+                               1, 2, 3, 3, 3, 3, 3, 2, 1,
+                               1, 2, 2, 2, 2, 2, 2, 2, 1,
+                               1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=float)
         self.basePb = self.basePb / 3
         self.basePb = np.reshape(self.basePb, (9, 9))
-    
+
+        # 复盘时用
+        if buffer is not None:
+            with closing(shelve.open(buffer,'r')) as shelf:
+                self.color = shelf['color']
+                self.board_selfNow = shelf['board_selfNow']
+                self.board_opp_known = shelf['board_opp_known']
+                self.num_oppStones = shelf['num_oppStones']
+
+
     def action(self):
         """计算落子并返回坐标"""
 
@@ -71,10 +76,6 @@ class Ghost():
             pbs,vs = self.scoreNet.run_many(self.board_sims)
             scoreBoard = np.sum(pbs,axis=0)
 
-        #print('scoreBoard:',scoreBoard)
-
-        #scoreBoard = scoreBoard[:-1]
-
         # 自己的位置得分设为零
         selfPlaces = np.transpose(np.nonzero(self.board_selfNow))
         for sp in selfPlaces:
@@ -92,15 +93,20 @@ class Ghost():
 
         #print('scoreBoard:\n',scoreBoard)
 
-        flatMaxIdx = np.argmax(scoreBoard)
-
         # pass的情况
         if scoreBoard.sum() == 0:
-            self.tryAction = [-1, -1]
-            return [-1,-1]
+            action = [-1, -1]
+            self.tryAction = action
+        else:
+            flatMaxIdx = np.argmax(scoreBoard)
+            action = [int(flatMaxIdx/9), int(flatMaxIdx%9)]
+            self.tryAction = action
 
-        action = [int(flatMaxIdx/9), int(flatMaxIdx%9)]
-        self.tryAction = action
+        with closing(shelve.open('buffer', 'c')) as shelf:
+            shelf['color'] = self.color
+            shelf['board_selfNow'] = self.board_selfNow
+            shelf['board_opp_known'] = self.board_opp_known
+            shelf['num_oppStones'] = self.num_oppStones
 
         return action
 
@@ -186,26 +192,30 @@ class Ghost():
         return board_innnerQi
 
     def simOppLatest(self):
-        # 从对手的上一步落子开始模拟，在此之前的直接随机抽样，不记录中间过程
-
+        """ 从对手的上一步落子开始模拟，在此之前的直接随机抽样，不记录中间过程 """
         pb = self.board_opp_known.copy()
         pb.astype(float)
         pb = pb + self.basePb
-        pb.flat[[i for (i,x) in enumerate(self.board_selfNow.flat) if x == self.color]] = 0
-        pb = pb / pb.sum()
 
         # 判断对手棋子总数上限，num_oppStones不能大于上限
-        #print('num_oppStones:', self.num_oppStones)
         board_innerQi = self.findInnerQi()
         num_oppStoneUpperLimit = 81 - len(np.transpose(np.nonzero(self.board_selfNow))) - len(np.transpose(np.nonzero(board_innerQi)))
         if self.num_oppStones > num_oppStoneUpperLimit:
             self.num_oppStones = num_oppStoneUpperLimit
+
+        # 对手不可能在我方落子处或我方eye处有落子
+        pb.flat[[i for (i, x) in enumerate(self.board_selfNow.flat) if x == self.color]] = 0
+        pb.flat[[i for (i, x) in enumerate(board_innerQi.flat) if x == 1]] = 0
+        if not pb.sum():
+            return
+        pb = pb / pb.sum()
 
         for t in range(200):
             tmpPb = pb.copy()
 
             tmpGo = Position(n=9, board=self.board_selfNow, to_play=-self.color)
 
+            # 对手落子
             for i in range(self.num_oppStones - 1):
                 for ntry in range(5):
                     flatIdx = np.random.choice(self.board_flat_idx, 1, p=tmpPb.flat)
@@ -228,6 +238,7 @@ class Ghost():
                     tmpPb = tmpPb / tmpPb.sum()
                     break
 
+            # 对手的最后一次落子
             for q in range(10):
                 flatIdx = np.random.choice(self.board_flat_idx, 1, p=tmpPb.flat)
                 action_opp = (int(flatIdx / 9), int(flatIdx % 9))

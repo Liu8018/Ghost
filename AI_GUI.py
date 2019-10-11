@@ -10,7 +10,9 @@ from absl import app
 from tkinter import *
 from tkinter.messagebox import *
 
-from Ghost1 import Ghost
+from Ghost import Ghost
+import numpy as np
+from go import find_reached
 
 class Chess(object):
 
@@ -34,7 +36,6 @@ class Chess(object):
         self.is_chess = True
         self.last_p = None
         self.text = ''
-        self.takechess_storage = []
         self.state = 0
 
         ###########
@@ -58,13 +59,11 @@ class Chess(object):
         # parameter state
         self.b_initial = Button(self.f_header, text="初始化", command=self.bf_initial, font=self.btn_font)
         self.b_takechess = Button(self.f_header, text="提子", command=self.bf_takechess_start, font=self.btn_font)
-        self.b_takechess_end = Button(self.f_header, text="提子结束", command=self.bf_takechess_end, font=self.btn_font)
         self.b_PhantomGo = Button(self.BOTTOM_operation, text="下棋", command=self.cf_board, font=self.btn_font)
 
         # 调整按钮与标签的位置
         self.b_initial.pack(side=LEFT, padx=50)
         self.b_takechess.pack(side=RIGHT, padx=50)
-        self.b_takechess_end.pack(side=BOTTOM)
         self.b_PhantomGo.pack(side=BOTTOM)
 
         self.c_chess = Canvas(self.root, bg=self.board_color, width=(self.column + 1) * self.mesh,
@@ -117,6 +116,7 @@ class Chess(object):
         for j in range(9):
             self.c_chess.create_text(52+j*50, 15, text=j, font=self.btn_font)
 
+
         color_info = askquestion("确定我方先后手", "先手？")
         color = 0
         if color_info == 'yes':
@@ -125,20 +125,30 @@ class Chess(object):
            color = -1
         self.ghost = Ghost(color)
 
+
+        """
+        # 复盘时用
+        self.ghost = Ghost(1, 'buffer')
+
+        stoneList = np.transpose(np.nonzero(self.ghost.board_selfNow))
+
+        color = "black" if self.ghost.color == 1 else "white"
+        for stone in stoneList:
+            x = stone[0]
+            y = stone[1]
+            self.draw_chess(x, y, color)
+            self.last_p = [x, y]
+            self.label['text'] = '(' + str(9 - x) + ', ' + chr(ord('A') + y) + ')' + '    ' + '(' + str(x) + ', ' + str(y) + ')'
+        """
+
     # 程序接口
     def bf_takechess_start(self):
         self.state = 1
         return self.state
 
-    # 程序接口
-    def bf_takechess_end(self):
-        print(self.takechess_storage)
-        self.ghost.on_takeInfo(self.takechess_storage)
-        self.takechess_storage = []
-        self.state = 0
-
     # 用网格覆盖掉棋子，操作相应变量，matrix[x][y]置空
     def bf_takechess(self, click):
+        takechess_storage = []
         if self.state:
             # 找到离点击点最近的坐标
             x, y = int((click.y - self.step) / self.mesh), int((click.x - self.step) / self.mesh)
@@ -150,10 +160,20 @@ class Chess(object):
             # 双方子皆可被提出
             if distance > self.step * 0.95:
                 return
-            self.draw_mesh(x, y)
-            self.matrix[x][y] = 0
-            self.takechess_storage.append([x, y])
-        return self.takechess_storage
+
+            group, _ = find_reached(self.ghost.board_selfNow, (x,y))
+
+            for coord in group:
+                x = coord[0]
+                y = coord[1]
+                self.draw_mesh(x, y)
+                self.matrix[x][y] = 0
+                takechess_storage.append([x, y])
+
+        self.state = 0
+
+        print(takechess_storage)
+        self.ghost.on_takeInfo(takechess_storage)
 
     # 程序接口
     def bf_PhantomGo(self):
