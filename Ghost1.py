@@ -33,16 +33,16 @@ class Ghost():
         self.board_flat_idx = np.array([idx for idx in range(81)])
 
         # 空间位置概率
-        self.basePb = np.array([1, 1, 1, 1, 1, 1, 1, 1, 1,
-                               1, 2, 2, 2, 2, 2, 2, 2, 1,
+        self.basePb = np.array([1, 2, 1, 2, 1, 2, 1, 2, 1,
+                               2, 1, 2, 2, 2, 2, 2, 1, 2,
                                1, 2, 3, 3, 3, 3, 3, 2, 1,
-                               1, 2, 3, 4, 4, 4, 3, 2, 1,
+                               2, 2, 3, 4, 4, 4, 3, 2, 2,
                                1, 2, 3, 4, 5, 4, 3, 2, 1,
-                               1, 2, 3, 4, 4, 4, 3, 2, 1,
+                               2, 2, 3, 4, 4, 4, 3, 2, 2,
                                1, 2, 3, 3, 3, 3, 3, 2, 1,
-                               1, 2, 2, 2, 2, 2, 2, 2, 1,
-                               1, 1, 1, 1, 1, 1, 1, 1, 1], dtype=float)
-        self.basePb = self.basePb / 3
+                               2, 1, 2, 2, 2, 2, 2, 1, 2,
+                               1, 2, 1, 2, 1, 2, 1, 2, 1], dtype=float)
+        self.basePb = self.basePb
         self.basePb = np.reshape(self.basePb, (9, 9))
 
         # 复盘时用
@@ -148,7 +148,7 @@ class Ghost():
                     if tmpQi[0] >= 0 and tmpQi[0] <=8 and tmpQi[1] >= 0 and tmpQi[1] <= 8 and self.board_selfNow[tmpQi[0],tmpQi[1]] != self.color:
                         qis.append(tmpQi)
             for qi in qis:
-                self.board_opp_known[qi[0],qi[1]] += 100
+                self.board_opp_known[qi[0],qi[1]] += 5000
 
             # 提子位置设为无棋子状态
             for t in range(len(takes)):
@@ -206,9 +206,11 @@ class Ghost():
         # 对手不可能在我方落子处或我方eye处有落子
         pb.flat[[i for (i, x) in enumerate(self.board_selfNow.flat) if x == self.color]] = 0
         pb.flat[[i for (i, x) in enumerate(board_innerQi.flat) if x == 1]] = 0
+        if not pb.sum():
+            return
         pb = pb / pb.sum()
 
-        for t in range(200):
+        for t in range(800):
             tmpPb = pb.copy()
 
             tmpGo = Position(n=9, board=self.board_selfNow, to_play=-self.color)

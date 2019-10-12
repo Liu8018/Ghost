@@ -10,7 +10,7 @@ from absl import app
 from tkinter import *
 from tkinter.messagebox import *
 
-from Ghost import Ghost
+from Ghost1 import Ghost
 import numpy as np
 from go import find_reached
 
@@ -116,30 +116,30 @@ class Chess(object):
         for j in range(9):
             self.c_chess.create_text(52+j*50, 15, text=j, font=self.btn_font)
 
+        restore = False
 
-        color_info = askquestion("确定我方先后手", "先手？")
-        color = 0
-        if color_info == 'yes':
-           color = 1
+        if not restore:
+            color_info = askquestion("确定我方先后手", "先手？")
+            color = 0
+            if color_info == 'yes':
+               color = 1
+            else:
+               color = -1
+            self.ghost = Ghost(color)
         else:
-           color = -1
-        self.ghost = Ghost(color)
+            # 复盘时用
+            self.ghost = Ghost(1, 'buffer')
 
+            stoneList = np.transpose(np.nonzero(self.ghost.board_selfNow))
 
-        """
-        # 复盘时用
-        self.ghost = Ghost(1, 'buffer')
+            color = "black" if self.ghost.color == 1 else "white"
+            for stone in stoneList:
+                x = stone[0]
+                y = stone[1]
+                self.draw_chess(x, y, color)
+                self.last_p = [x, y]
+                self.label['text'] = '(' + str(9 - x) + ', ' + chr(ord('A') + y) + ')' + '    ' + '(' + str(x) + ', ' + str(y) + ')'
 
-        stoneList = np.transpose(np.nonzero(self.ghost.board_selfNow))
-
-        color = "black" if self.ghost.color == 1 else "white"
-        for stone in stoneList:
-            x = stone[0]
-            y = stone[1]
-            self.draw_chess(x, y, color)
-            self.last_p = [x, y]
-            self.label['text'] = '(' + str(9 - x) + ', ' + chr(ord('A') + y) + ')' + '    ' + '(' + str(x) + ', ' + str(y) + ')'
-        """
 
     # 程序接口
     def bf_takechess_start(self):
@@ -196,7 +196,7 @@ class Chess(object):
             self.draw_chess(x, y, color)
             # self.matrix[x][y] = tag
             self.last_p = [x, y]
-            self.label['text'] = '(' + str(9-x) + ', ' + chr(ord('A')+y) + ')'+ '    '+'(' + str(x) + ', ' + str(y) + ')'
+            self.label['text'] = '(' + chr(ord('A')+y) + ', ' + str(9-x) + ')'+ '    '+'(' + str(x) + ', ' + str(y) + ')'
             legal_info = askquestion("判定合法情况", "legal？")
             if legal_info == 'yes':
                 self.ghost.on_legalInfo(True)

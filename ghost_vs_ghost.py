@@ -1,6 +1,6 @@
 from absl import app
 import numpy as np
-from Ghost import Ghost as Ghost1
+from Ghost1 import Ghost as Ghost1
 from Ghost import Ghost as Ghost2
 from Referee import Referee
 import random

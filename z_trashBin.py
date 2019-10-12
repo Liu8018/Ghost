@@ -22,7 +22,6 @@ class Ghost():
         self.board_opp_known = np.zeros((9,9),int)    # 已知的对手棋盘信息（不包含历史信息）
         self.board_sims = []    # 模拟出的完全信息棋盘
         self.tryAction = []
-        self.prevAction = []
         self.illegalBoard = np.zeros((9,9),int)
         self.num_oppStones = 0    # 对手棋子总数
 
@@ -125,8 +124,6 @@ class Ghost():
             self.board_selfNow[self.tryAction[0], self.tryAction[1]] = self.color
             self.board_opp_known[self.tryAction[0], self.tryAction[1]] = 0
             self.num_oppStones += 1
-
-            self.prevAction = [self.tryAction[0], self.tryAction[1]]
         else:
             self.board_opp_known[self.tryAction[0], self.tryAction[1]] += 80
             self.illegalBoard[self.tryAction[0], self.tryAction[1]] = 1
@@ -209,19 +206,14 @@ class Ghost():
         # 对手不可能在我方落子处或我方eye处有落子
         pb.flat[[i for (i, x) in enumerate(self.board_selfNow.flat) if x == self.color]] = 0
         pb.flat[[i for (i, x) in enumerate(board_innerQi.flat) if x == 1]] = 0
+        if not pb.sum():
+            return
         pb = pb / pb.sum()
-
-        # 是否模拟自己的最后一次落子
-        flag_simSelfLatest = False
-        board_selfPrev = self.board_selfNow.copy()
-        if self.prevAction != [] and self.board_selfNow[self.prevAction[0], self.prevAction[1]] == self.color:
-            flag_simSelfLatest = True
-            board_selfPrev[self.prevAction[0], self.prevAction[1]] = 0
 
         for t in range(200):
             tmpPb = pb.copy()
 
-            tmpGo = Position(n=9, board=board_selfPrev, to_play=-self.color)
+            tmpGo = Position(n=9, board=self.board_selfNow, to_play=-self.color)
 
             # 对手落子
             for i in range(self.num_oppStones - 1):
@@ -246,15 +238,8 @@ class Ghost():
                     tmpPb = tmpPb / tmpPb.sum()
                     break
 
-            # 我方最后一次落子
-            if flag_simSelfLatest:
-                tmpGo.to_play = self.color
-                if not tmpGo.is_move_legal(tuple(self.prevAction)):
-                    continue
-                tmpGo = tmpGo.play_move(tuple(self.prevAction))
-
             # 对手的最后一次落子
-            for q in range(20):
+            for q in range(10):
                 flatIdx = np.random.choice(self.board_flat_idx, 1, p=tmpPb.flat)
                 action_opp = (int(flatIdx / 9), int(flatIdx % 9))
 
@@ -338,6 +323,8 @@ class Ghost():
         self.board_sims = self.tmpSims[0] + self.tmpSims[1] + self.tmpSims[2] + self.tmpSims[3]
         self.tmpSims = [[], [], [], []]
         """
+
+
 
 # --------------------------------------------------------------------------------------------------------------------
 
