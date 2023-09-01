@@ -1,7 +1,7 @@
 # Ghost
 基于miniGo的幻影围棋AI，2019中国计算机博弈大赛幻影围棋组冠军；AI of Phantom Go based on miniGo
 
-使用了monigo的神经网络模型：https://github.com/tensorflow/minigo
+使用了minigo的神经网络模型：https://github.com/tensorflow/minigo
 
 
 #### 环境配置：
